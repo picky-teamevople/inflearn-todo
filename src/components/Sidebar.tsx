@@ -2,6 +2,7 @@
 
 import { GripVertical, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useId, useState } from 'react';
+import { CategoryFormSheet } from '@/components/CategoryFormSheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CATEGORY_NAME_MAX_LENGTH } from '@/lib/validation';
@@ -48,6 +49,7 @@ export function Sidebar({
   const [newName, setNewName] = useState('');
   const [addError, setAddError] = useState<string | null>(null);
   const [addSubmitting, setAddSubmitting] = useState(false);
+  const [mobileAddOpen, setMobileAddOpen] = useState(false);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -305,9 +307,18 @@ export function Sidebar({
         </p>
       ) : null}
 
+      <button
+        type="button"
+        onClick={() => setMobileAddOpen(true)}
+        className={`flex shrink-0 items-center gap-1 md:hidden ${navItemClass(false)}`}
+      >
+        <Plus className="size-4" aria-hidden="true" />
+        할일그룹 추가
+      </button>
+
       <form
         onSubmit={handleAddSubmit}
-        className="flex w-40 shrink-0 flex-col gap-1 md:mt-2 md:w-auto md:border-t md:border-neutral-200 md:pt-2"
+        className="hidden w-40 shrink-0 flex-col gap-1 md:mt-2 md:flex md:w-auto md:border-t md:border-neutral-200 md:pt-2"
         noValidate
       >
         <div className="flex items-center gap-1">
@@ -339,6 +350,13 @@ export function Sidebar({
           </p>
         ) : null}
       </form>
+
+      <CategoryFormSheet
+        open={mobileAddOpen}
+        title="할일그룹 추가"
+        onOpenChange={setMobileAddOpen}
+        onSubmit={onAddCategory}
+      />
     </nav>
   );
 }

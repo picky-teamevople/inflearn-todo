@@ -1,13 +1,14 @@
 'use client';
 
 import { Calendar } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import {
   fromDueDateParts,
   nowAsDueDateParts,
+  toDueDateParts,
   type DueDateParts,
 } from '@/lib/dueDateParts';
 import {
@@ -18,46 +19,40 @@ import {
   VALIDATION_MESSAGES,
 } from '@/lib/validation';
 import type { Category } from '@/types/category';
-import type { CreateTodoInput } from '@/types/todo';
+import type { Todo, UpdateTodoInput } from '@/types/todo';
 
-interface TodoInputProps {
-  onSubmit: (input: CreateTodoInput) => Promise<{ ok: boolean; error?: string }>;
-  categories: Category[];
-  activeCategory?: string | null;
-  onSubmitted?: () => void;
+interface ActionResult {
+  ok: boolean;
+  error?: string;
 }
 
-export function TodoInput({
-  onSubmit,
-  categories,
-  activeCategory,
-  onSubmitted,
-}: TodoInputProps) {
-  const titleId = useId();
-  const dueDateToggleId = useId();
-  const categoryId = useId();
+interface TodoEditFormProps {
+  todo: Todo;
+  categories: Category[];
+  onEdit: (id: string, patch: UpdateTodoInput) => Promise<ActionResult>;
+  onCancel: () => void;
+  onSaved?: () => void;
+  submitLabel?: string;
+}
 
-  const [title, setTitle] = useState('');
-  const [dueDateEnabled, setDueDateEnabled] = useState(false);
-  const [dueDateParts, setDueDateParts] = useState<DueDateParts>(
-    nowAsDueDateParts
+export function TodoEditForm({
+  todo,
+  categories,
+  onEdit,
+  onCancel,
+  onSaved,
+  submitLabel,
+}: TodoEditFormProps) {
+  const [title, setTitle] = useState(todo.title);
+  const [dueDateEnabled, setDueDateEnabled] = useState(todo.dueDate !== null);
+  const [dueDateParts, setDueDateParts] = useState<DueDateParts>(() =>
+    toDueDateParts(todo.dueDate)
   );
-  const [selectedCategory, setSelectedCategory] = useState(activeCategory ?? '');
-  const [prevActiveCategory, setPrevActiveCategory] = useState(activeCategory);
+  const [selectedCategory, setSelectedCategory] = useState(
+    todo.categories[0] ?? ''
+  );
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  if (activeCategory !== prevActiveCategory) {
-    setPrevActiveCategory(activeCategory);
-    setSelectedCategory(activeCategory ?? '');
-  }
-
-  function resetForm() {
-    setTitle('');
-    setDueDateEnabled(false);
-    setSelectedCategory(activeCategory ?? '');
-    setFormError(null);
-  }
 
   function handleDueDateToggle(checked: boolean) {
     setDueDateEnabled(checked);
@@ -100,7 +95,7 @@ export function TodoInput({
     setFormError(null);
     setSubmitting(true);
 
-    const result = await onSubmit({
+    const result = await onEdit(todo.id, {
       title: title.trim(),
       dueDate: isoDueDate,
       categories: selectedCategories,
@@ -113,33 +108,35 @@ export function TodoInput({
       return;
     }
 
-    resetForm();
-    onSubmitted?.();
+    onSaved?.();
   }
 
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex flex-col gap-4 rounded-lg border border-neutral-200 p-5"
+      onKeyDown={(event) => {
+        if (event.key === 'Escape') {
+          event.preventDefault();
+          onCancel();
+        }
+      }}
+      className="flex flex-col gap-3"
       noValidate
     >
       <Input
-        id={titleId}
+        autoFocus
         value={title}
         onChange={(event) => setTitle(event.target.value)}
-        placeholder="할 일을 입력하세요"
         maxLength={TITLE_MAX_LENGTH}
-        aria-label="할 일 제목"
+        aria-label="할 일 제목 수정"
         aria-invalid={formError !== null}
-        aria-describedby={formError ? `${titleId}-error` : undefined}
-        className="h-12 px-4 text-base md:text-lg"
+        className="h-10 flex-1 text-base"
       />
 
       <div className="flex flex-wrap items-start gap-4">
         <div className="flex items-start gap-1.5">
           <div className="flex h-8 items-center gap-1.5">
             <Checkbox
-              id={dueDateToggleId}
               checked={dueDateEnabled}
               onCheckedChange={(checked) => handleDueDateToggle(checked === true)}
               aria-label="마감일 설정"
@@ -189,7 +186,6 @@ export function TodoInput({
         </div>
 
         <select
-          id={categoryId}
           value={selectedCategory}
           onChange={(event) => setSelectedCategory(event.target.value)}
           aria-label="카테고리"
@@ -205,17 +201,13 @@ export function TodoInput({
       </div>
 
       {formError ? (
-        <p id={`${titleId}-error`} role="alert" className="text-sm text-red-600">
+        <p role="alert" className="text-sm text-red-600">
           {formError}
         </p>
       ) : null}
 
-      <Button
-        type="submit"
-        disabled={submitting || validateTitle(title).valid === false}
-        className="h-12"
-      >
-        추가
+      <Button type="submit" disabled={submitting} className="h-10">
+        {submitLabel ?? '저장'}
       </Button>
     </form>
   );

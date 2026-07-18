@@ -22,6 +22,8 @@ interface DeleteConfirmDialogProps {
   open: boolean;
   onConfirm: () => Promise<ActionResult>;
   onCancel: () => void;
+  title?: string;
+  description?: string;
 }
 
 export function DeleteConfirmDialog({
@@ -29,6 +31,8 @@ export function DeleteConfirmDialog({
   open,
   onConfirm,
   onCancel,
+  title,
+  description,
 }: DeleteConfirmDialogProps) {
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,11 +66,12 @@ export function DeleteConfirmDialog({
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>할 일을 삭제하시겠습니까?</DialogTitle>
+          <DialogTitle>{title ?? '할 일을 삭제하시겠습니까?'}</DialogTitle>
           <DialogDescription>
-            {todo
-              ? `"${todo.title}" 항목을 삭제하면 되돌릴 수 없습니다.`
-              : '이 항목을 삭제하면 되돌릴 수 없습니다.'}
+            {description ??
+              (todo
+                ? `"${todo.title}" 항목을 삭제하면 되돌릴 수 없습니다.`
+                : '이 항목을 삭제하면 되돌릴 수 없습니다.')}
           </DialogDescription>
         </DialogHeader>
         {error ? (
