@@ -2,8 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AppTitle } from '@/components/AppTitle';
+import { CategoryHeaderMenu } from '@/components/CategoryHeaderMenu';
 import { DeadlineAlertBanner } from '@/components/DeadlineAlertBanner';
 import { DeleteConfirmDialog } from '@/components/DeleteConfirmDialog';
+import { MobileTodoFab } from '@/components/MobileTodoFab';
 import { Sidebar } from '@/components/Sidebar';
 import { Toast } from '@/components/Toast';
 import { TodoInput } from '@/components/TodoInput';
@@ -62,6 +64,17 @@ export default function Home() {
       todo.categories.some((category) => normalizeCategory(category) === key)
     );
   }, [todos, selectedCategory]);
+
+  const selectedCategoryEntity = useMemo(() => {
+    if (selectedCategory === null) {
+      return null;
+    }
+    const key = normalizeCategory(selectedCategory);
+    return (
+      categories.find((category) => normalizeCategory(category.name) === key) ??
+      null
+    );
+  }, [categories, selectedCategory]);
 
   function handleDeleteRequest(todo: Todo) {
     setDeleteTarget(todo);
@@ -139,7 +152,7 @@ export default function Home() {
           onReorderCategories={reorderCategories}
         />
 
-        <main className="flex w-full flex-1 flex-col gap-6 px-4 py-8">
+        <main className="flex w-full flex-1 flex-col gap-6 px-4 py-8 pb-24 md:pb-8">
           {error ? (
             <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
               {error}
@@ -159,13 +172,24 @@ export default function Home() {
           ) : null}
 
           <div className="flex w-full max-w-2xl flex-col gap-6">
+            {selectedCategoryEntity ? (
+              <CategoryHeaderMenu
+                category={selectedCategoryEntity}
+                onRename={handleRenameCategory}
+                onRemove={removeCategory}
+                onRemoved={() => setSelectedCategory(null)}
+              />
+            ) : null}
+
             <DeadlineAlertBanner todos={todos} />
 
-            <TodoInput
-              onSubmit={addTodo}
-              categories={categories}
-              activeCategory={selectedCategory}
-            />
+            <div className="hidden md:block">
+              <TodoInput
+                onSubmit={addTodo}
+                categories={categories}
+                activeCategory={selectedCategory}
+              />
+            </div>
 
             {loading ? (
               <p className="text-sm text-neutral-500">불러오는 중...</p>
@@ -187,6 +211,12 @@ export default function Home() {
         open={deleteTarget !== null}
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
+      />
+
+      <MobileTodoFab
+        onSubmit={addTodo}
+        categories={categories}
+        activeCategory={selectedCategory}
       />
 
       <Toast message={toastMessage} />
