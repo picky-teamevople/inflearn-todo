@@ -1,15 +1,14 @@
 import { randomUUID } from 'crypto';
-import { mkdir, readFile, rename, writeFile } from 'fs/promises';
-import path from 'path';
+import { readJson, writeJson } from '@/lib/blobJsonStore';
 import { dedupeCategories, UNCATEGORIZED_LABEL } from '@/lib/category';
 import type { CreateTodoInput, Todo, UpdateTodoInput } from '@/types/todo';
 
-const DATA_DIR = path.join(process.cwd(), 'data');
-const DATA_FILE = path.join(DATA_DIR, 'todos.json');
-const TEMP_FILE = path.join(DATA_DIR, 'todos.json.tmp');
-
 interface TodosFile {
   todos: Todo[];
+}
+
+function pathnameFor(userId: string): string {
+  return `todos/${userId}.json`;
 }
 
 function resolveCategories(categories: string[] | undefined): string[] {
@@ -17,35 +16,27 @@ function resolveCategories(categories: string[] | undefined): string[] {
   return deduped.length > 0 ? deduped : [UNCATEGORIZED_LABEL];
 }
 
-/** JSON 파일 읽기 (파일 없으면 []) */
-export async function readTodos(): Promise<Todo[]> {
-  try {
-    const raw = await readFile(DATA_FILE, 'utf-8');
-    const parsed = JSON.parse(raw) as TodosFile;
-    return parsed.todos ?? [];
-  } catch (error) {
-    if (
-      error instanceof Error &&
-      'code' in error &&
-      (error as NodeJS.ErrnoException).code === 'ENOENT'
-    ) {
-      return [];
-    }
-    throw error;
-  }
+/** 사용자의 Todo 목록 읽기 (없으면 []) */
+export async function readTodos(userId: string): Promise<Todo[]> {
+  const parsed = await readJson<TodosFile>(pathnameFor(userId), { todos: [] });
+  return parsed.todos ?? [];
 }
 
-/** 임시 파일에 쓴 뒤 rename으로 원자적 교체 */
-export async function writeTodosAtomic(todos: Todo[]): Promise<void> {
-  await mkdir(DATA_DIR, { recursive: true });
+/** Todo 목록 전체 저장 */
+export async function writeTodosAtomic(
+  userId: string,
+  todos: Todo[]
+): Promise<void> {
   const payload: TodosFile = { todos };
-  await writeFile(TEMP_FILE, JSON.stringify(payload, null, 2), 'utf-8');
-  await rename(TEMP_FILE, DATA_FILE);
+  await writeJson(pathnameFor(userId), payload);
 }
 
 /** 목록 최상단에 추가될 신규 Todo 생성 후 저장 */
-export async function createTodo(input: CreateTodoInput): Promise<Todo> {
-  const todos = await readTodos();
+export async function createTodo(
+  userId: string,
+  input: CreateTodoInput
+): Promise<Todo> {
+  const todos = await readTodos(userId);
   const now = new Date().toISOString();
 
   const newTodo: Todo = {
@@ -59,16 +50,17 @@ export async function createTodo(input: CreateTodoInput): Promise<Todo> {
   };
 
   const next = [newTodo, ...todos];
-  await writeTodosAtomic(next);
+  await writeTodosAtomic(userId, next);
   return newTodo;
 }
 
 /** 완료 토글 등 부분 수정, 없으면 null 반환 */
 export async function updateTodo(
+  userId: string,
   id: string,
   patch: UpdateTodoInput
 ): Promise<Todo | null> {
-  const todos = await readTodos();
+  const todos = await readTodos(userId);
   const index = todos.findIndex((todo) => todo.id === id);
 
   if (index === -1) {
@@ -89,16 +81,17 @@ export async function updateTodo(
 
   const next = [...todos];
   next[index] = updated;
-  await writeTodosAtomic(next);
+  await writeTodosAtomic(userId, next);
   return updated;
 }
 
 /** 카테고리 이름이 바뀐 경우, 해당 이름을 참조하는 모든 Todo의 표시값을 새 이름으로 교체 */
 export async function renameCategoryInTodos(
+  userId: string,
   previousName: string,
   nextName: string
 ): Promise<void> {
-  const todos = await readTodos();
+  const todos = await readTodos(userId);
   let changed = false;
 
   const next = todos.map((todo) => {
@@ -119,19 +112,19 @@ export async function renameCategoryInTodos(
   });
 
   if (changed) {
-    await writeTodosAtomic(next);
+    await writeTodosAtomic(userId, next);
   }
 }
 
 /** 삭제 후 저장, 성공 여부 반환 */
-export async function deleteTodo(id: string): Promise<boolean> {
-  const todos = await readTodos();
+export async function deleteTodo(userId: string, id: string): Promise<boolean> {
+  const todos = await readTodos(userId);
   const next = todos.filter((todo) => todo.id !== id);
 
   if (next.length === todos.length) {
     return false;
   }
 
-  await writeTodosAtomic(next);
+  await writeTodosAtomic(userId, next);
   return true;
 }

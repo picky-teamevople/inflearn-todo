@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireUserId } from '@/lib/requireUserId';
 import { deleteTodo, updateTodo } from '@/lib/todoStore';
 import {
   validateCategories,
@@ -14,6 +15,11 @@ interface RouteContext {
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
+  const auth = await requireUserId();
+  if ('errorResponse' in auth) {
+    return auth.errorResponse;
+  }
+
   try {
     const { id } = await context.params;
     const body = (await request.json()) as UpdateTodoInput;
@@ -48,7 +54,7 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       }
     }
 
-    const updated = await updateTodo(id, body);
+    const updated = await updateTodo(auth.userId, id, body);
 
     if (!updated) {
       return NextResponse.json({ error: NOT_FOUND_MESSAGE }, { status: 404 });
@@ -64,9 +70,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
+  const auth = await requireUserId();
+  if ('errorResponse' in auth) {
+    return auth.errorResponse;
+  }
+
   try {
     const { id } = await context.params;
-    const success = await deleteTodo(id);
+    const success = await deleteTodo(auth.userId, id);
 
     if (!success) {
       return NextResponse.json({ error: NOT_FOUND_MESSAGE }, { status: 404 });

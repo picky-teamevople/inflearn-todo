@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { requireUserId } from '@/lib/requireUserId';
 import { createTodo, readTodos } from '@/lib/todoStore';
 import {
   validateCategories,
@@ -8,8 +9,13 @@ import {
 import type { CreateTodoInput } from '@/types/todo';
 
 export async function GET() {
+  const auth = await requireUserId();
+  if ('errorResponse' in auth) {
+    return auth.errorResponse;
+  }
+
   try {
-    const todos = await readTodos();
+    const todos = await readTodos(auth.userId);
     return NextResponse.json(todos, { status: 200 });
   } catch {
     return NextResponse.json(
@@ -20,6 +26,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireUserId();
+  if ('errorResponse' in auth) {
+    return auth.errorResponse;
+  }
+
   try {
     const body = (await request.json()) as CreateTodoInput;
 
@@ -44,7 +55,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const todo = await createTodo(body);
+    const todo = await createTodo(auth.userId, body);
     return NextResponse.json(todo, { status: 201 });
   } catch {
     return NextResponse.json(

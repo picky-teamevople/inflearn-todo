@@ -4,6 +4,7 @@ import {
   readCategories,
   updateCategory,
 } from '@/lib/categoryStore';
+import { requireUserId } from '@/lib/requireUserId';
 import { validateCategoryName } from '@/lib/validation';
 
 const NOT_FOUND_MESSAGE = '존재하지 않는 카테고리입니다';
@@ -13,10 +14,15 @@ interface RouteContext {
 }
 
 export async function PATCH(request: NextRequest, context: RouteContext) {
+  const auth = await requireUserId();
+  if ('errorResponse' in auth) {
+    return auth.errorResponse;
+  }
+
   try {
     const { id } = await context.params;
     const body = (await request.json()) as { name?: string };
-    const existing = await readCategories();
+    const existing = await readCategories(auth.userId);
     const target = existing.find((category) => category.id === id);
 
     if (!target) {
@@ -32,7 +38,11 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
       return NextResponse.json({ error: nameResult.error }, { status: 400 });
     }
 
-    const updated = await updateCategory(id, (body.name ?? '').trim());
+    const updated = await updateCategory(
+      auth.userId,
+      id,
+      (body.name ?? '').trim()
+    );
 
     if (!updated) {
       return NextResponse.json({ error: NOT_FOUND_MESSAGE }, { status: 404 });
@@ -48,9 +58,14 @@ export async function PATCH(request: NextRequest, context: RouteContext) {
 }
 
 export async function DELETE(_request: NextRequest, context: RouteContext) {
+  const auth = await requireUserId();
+  if ('errorResponse' in auth) {
+    return auth.errorResponse;
+  }
+
   try {
     const { id } = await context.params;
-    const success = await deleteCategory(id);
+    const success = await deleteCategory(auth.userId, id);
 
     if (!success) {
       return NextResponse.json({ error: NOT_FOUND_MESSAGE }, { status: 404 });

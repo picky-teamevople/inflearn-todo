@@ -4,12 +4,18 @@ import {
   readCategories,
   reorderCategories,
 } from '@/lib/categoryStore';
+import { requireUserId } from '@/lib/requireUserId';
 import { validateCategoryName } from '@/lib/validation';
 import type { CreateCategoryInput } from '@/types/category';
 
 export async function GET() {
+  const auth = await requireUserId();
+  if ('errorResponse' in auth) {
+    return auth.errorResponse;
+  }
+
   try {
-    const categories = await readCategories();
+    const categories = await readCategories(auth.userId);
     return NextResponse.json(categories, { status: 200 });
   } catch {
     return NextResponse.json(
@@ -20,9 +26,14 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireUserId();
+  if ('errorResponse' in auth) {
+    return auth.errorResponse;
+  }
+
   try {
     const body = (await request.json()) as CreateCategoryInput;
-    const existing = await readCategories();
+    const existing = await readCategories(auth.userId);
 
     const nameResult = validateCategoryName(
       body.name ?? '',
@@ -32,7 +43,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: nameResult.error }, { status: 400 });
     }
 
-    const category = await createCategory({ name: body.name.trim() });
+    const category = await createCategory(auth.userId, {
+      name: body.name.trim(),
+    });
     return NextResponse.json(category, { status: 201 });
   } catch {
     return NextResponse.json(
@@ -43,6 +56,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  const auth = await requireUserId();
+  if ('errorResponse' in auth) {
+    return auth.errorResponse;
+  }
+
   try {
     const body = (await request.json()) as { orderedIds?: unknown };
 
@@ -56,7 +74,10 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const reordered = await reorderCategories(body.orderedIds as string[]);
+    const reordered = await reorderCategories(
+      auth.userId,
+      body.orderedIds as string[]
+    );
     return NextResponse.json(reordered, { status: 200 });
   } catch {
     return NextResponse.json(
