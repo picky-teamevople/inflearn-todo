@@ -161,7 +161,11 @@ export default function Home() {
           <div className="flex w-full max-w-2xl flex-col gap-6">
             <DeadlineAlertBanner todos={todos} />
 
-            <TodoInput onSubmit={addTodo} categories={categories} />
+            <TodoInput
+              onSubmit={addTodo}
+              categories={categories}
+              activeCategory={selectedCategory}
+            />
 
             {loading ? (
               <p className="text-sm text-neutral-500">불러오는 중...</p>

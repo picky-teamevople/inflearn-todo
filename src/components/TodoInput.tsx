@@ -23,9 +23,10 @@ import type { CreateTodoInput } from '@/types/todo';
 interface TodoInputProps {
   onSubmit: (input: CreateTodoInput) => Promise<{ ok: boolean; error?: string }>;
   categories: Category[];
+  activeCategory?: string | null;
 }
 
-export function TodoInput({ onSubmit, categories }: TodoInputProps) {
+export function TodoInput({ onSubmit, categories, activeCategory }: TodoInputProps) {
   const titleId = useId();
   const dueDateToggleId = useId();
   const categoryId = useId();
@@ -35,14 +36,20 @@ export function TodoInput({ onSubmit, categories }: TodoInputProps) {
   const [dueDateParts, setDueDateParts] = useState<DueDateParts>(
     nowAsDueDateParts
   );
-  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(activeCategory ?? '');
+  const [prevActiveCategory, setPrevActiveCategory] = useState(activeCategory);
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  if (activeCategory !== prevActiveCategory) {
+    setPrevActiveCategory(activeCategory);
+    setSelectedCategory(activeCategory ?? '');
+  }
 
   function resetForm() {
     setTitle('');
     setDueDateEnabled(false);
-    setSelectedCategory('');
+    setSelectedCategory(activeCategory ?? '');
     setFormError(null);
   }
 
